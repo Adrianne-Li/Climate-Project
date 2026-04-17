@@ -1,0 +1,27 @@
+# Pip-only fallback. Prefer `conda env create -f environment.yml` if you can,
+# because geopandas/fiona/gdal are much easier to install via conda-forge.
+#
+# If you must use pip on a system that already has GDAL/GEOS/PROJ installed:
+#   pip install -r requirements.txt
+
+# Base scientific stack (pinned to the original project versions).
+numpy==2.1.1
+scipy==1.14.1
+scikit-learn==1.5.1
+pandas==2.2.2
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# Spatial econometrics.
+pysal==24.7
+spreg
+
+# Geospatial (needs system-level GDAL/GEOS/PROJ when installed via pip).
+geopandas>=1.0
+shapely>=2.0
+fiona>=1.9
+pyproj>=3.6
+
+# HTTP / downloads.
+requests>=2.31
+urllib3>=2.0
