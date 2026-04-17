@@ -27,7 +27,7 @@ Results land in `data/results/matches.csv`.
 
 ## Why there's a setup step
 
-A handful of the shapefiles the matcher uses are too large or too awkwardly licensed to ship inside a git repo — most notably the TIGER 2010 county file (~75 MB) and the Newberry Atlas of Historical County Boundaries (~200 MB). Instead of checking them in, `scripts/setup_data.py` pulls them from their canonical public sources into `data/manual_sources/` on first run. This keeps the repo small, the licensing clean, and the data current.
+A handful of the shapefiles the matcher uses are too large or too awkwardly licensed to ship inside a git repo — most notably the TIGER 2010 county file (~75 MB) and the Newberry Atlas of Historical County Boundaries (~500 MB). Instead of checking them in, `scripts/setup_data.py` pulls them from their canonical public sources into `data/manual_sources/` on first run. This keeps the repo small, the licensing clean, and the data current.
 
 The downloader is resilient: if a specific URL 404s (they occasionally move), the script prints a fallback note telling you where to grab the file manually and what folder to drop it into.
 
