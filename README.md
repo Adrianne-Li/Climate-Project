@@ -6,7 +6,7 @@ Compute area-based overlaps between **US Congressional Districts** and **countie
 
 ```bash
 # 1. Clone
-git clone git@github.com:Adrianne-Li/Climate-Project.git cd-county-matcher
+git clone https://github.com/Adrianne-Li/Climate-Project.git cd-county-matcher
 cd cd-county-matcher
 
 # 2. Create the conda environment (recommended — handles GDAL/GEOS/PROJ for you)
