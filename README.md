@@ -1,257 +1,157 @@
 # cd-county-matcher
 
-Compute area-based overlaps between **US Congressional Districts** and **counties** for any year from 1984 through 2025. The updated pipeline is **OSF-first**: it tries the public OSF project for all required shapefiles first, and only if OSF is unavailable/missing a file does it fall back to public online sources. Congressional districts use the UCLA Congressional District Boundary Project for **all** cycles/years, using `districts098.zip` through `districts119.zip`. The output is a tidy CSV where each row describes what fraction of a CD lies in a given county (and vice versa).
+Compute area-based overlaps between US Congressional Districts and counties for
+1984-2025. This package is OSF-first: it discovers the public OSF project,
+downloads raw shapefile components or zips from OSF, and only then falls back
+to public Census/UCLA sources.
 
-## Quickstart on MacOS
+## What This Build Fixes
+
+- Registers annual county sources `county_2011` through `county_2023`, so
+  `tl_2012_us_county.*` and neighboring annual county shapefiles are found.
+- Downloads missing `.prj` sidecars from OSF before matching, so files such as
+  `districts102.shp` do not load as CRS-naive geometries.
+- Keeps a final CRS safety net: if a shapefile still lacks CRS metadata, the
+  matcher assumes `EPSG:4269` before projecting. Override with
+  `MATCHER_SOURCE_CRS` if needed.
+- Keeps the post-processing defaults aligned with the UCLA year-to-Congress
+  convention, using `--year-shift 0` by default.
+
+## Quickstart on macOS
 
 ```bash
-# 1. Clone
-git clone https://github.com/Adrianne-Li/Climate-Project.git cd-county-matcher
-cd cd-county-matcher
+# 1. Unzip and enter the package
+unzip cd-county-matcher-complete.zip
+cd cd-county-matcher-complete
 
-# 2. Create the conda environment (recommended — handles GDAL/GEOS/PROJ for you)
+# 2. Create and activate the conda environment
 conda env create -f environment.yml
 conda activate py312
 
-# 3. (Optional) Register as a Jupyter kernel
+# 3. Optional: register as a Jupyter kernel
 python -m ipykernel install --user --name py312 --display-name "Python (py312)"
 
-# 4. Fetch the large shapefiles that don't live in this repo (~300 MB total).
-#    By default these come from our project's OSF Storage (fast); see
-#    "Hosting the large files on OSF" below to configure the GUIDs.
+# 4. Fetch large/manual shapefiles from OSF
 python scripts/setup_data.py
 
 # 5. Run the matcher
 python scripts/run_matcher.py --start 1984 --end 2025
 
-# 6. Run the post-processing pipeline (state backfill, uniform CD
-#    numbers + year-shift correction, redistricting analysis):
+# 6. Run post-processing
 python scripts/run_pipeline.py --skip-matcher --start 1984 --end 2025
-
 ```
+
 ## Quickstart on Windows
-```
-# 1. Clone
-git clone https://github.com/Adrianne-Li/Climate-Project.git cd-county-matcher
-cd cd-county-matcher
 
-# 2. Create the conda environment
-#    Recommended: handles GDAL/GEOS/PROJ for you
+Run in Anaconda Prompt or PowerShell:
+
+```powershell
+# 1. Unzip and enter the package
+cd C:\path\to\cd-county-matcher-complete
+
+# 2. Create and activate the conda environment
 conda env create -f environment.yml
 conda activate py312
 
-# 3. Optional: Register as a Jupyter kernel
+# 3. Optional: register as a Jupyter kernel
 python -m ipykernel install --user --name py312 --display-name "Python (py312)"
 
-# 4. Fetch the large shapefiles that do not live in this repo
-#    About 300 MB total. By default these come from the project's OSF Storage.
+# 4. Fetch large/manual shapefiles from OSF
 python scripts/setup_data.py
 
 # 5. Run the matcher
 python scripts/run_matcher.py --start 1984 --end 2025
 
-# 6. Run the post-processing pipeline
-#    State backfill, uniform CD numbers, year-shift correction, and redistricting analysis
+# 6. Run post-processing
 python scripts/run_pipeline.py --skip-matcher --start 1984 --end 2025
-
-Results land in `data/results/`. The matcher produces `matches.csv`; the
-pipeline adds `matches_state_filled.csv`, `matches_with_uniform_cd_shifted.csv`,
-`redistricting_analysis.csv`, and `redistricting_summary.txt`.
-
-To run *everything* (matcher + post-processing) in one go:
-
-```bash
-python scripts/run_pipeline.py --start 1984 --end 2025
 ```
 
-## Why there's a setup step
+If `conda activate py312` fails in PowerShell, run once:
 
-A handful of the shapefiles the matcher uses are too large or too awkwardly licensed to ship inside a git repo — most notably the TIGER 2010 county file (~75 MB) and the Newberry Atlas of Historical County Boundaries (~500 MB). Instead of checking them in, `scripts/setup_data.py` pulls them into `data/manual_sources/` on first run. This keeps the repo small, the licensing clean, and the data current.
+```powershell
+conda init powershell
+```
 
-The **primary** source is now the project's public OSF Storage (see below), which has stable URLs and does not require a token. The original public URLs are kept only as automatic fallbacks when OSF discovery/download fails or the expected file is not present.
+Then close and reopen PowerShell.
 
-The downloader is resilient: for each file it tries OSF first, then the public fallback URL; if everything fails it prints a fallback note telling you where to grab the file manually and what folder to drop it into.
+## Fast Rerun After Files Are Downloaded
 
-## Hosting the large files on OSF
+```bash
+python scripts/run_matcher.py --start 1984 --end 2025 --skip-download
+python scripts/run_pipeline.py --skip-matcher --start 1984 --end 2025
+```
 
-The large/manual shapefiles live in the project's **public OSF Storage** so collaborators do not need tokens or slow ad hoc source downloads. `setup_data.py` only needs the project's GUID — it queries the OSF API, lists the files in the project, matches the ones it needs by name, and downloads them. No per-file GUIDs are required. The matcher itself also performs OSF discovery and will try OSF before using any public fallback.
+## Output
 
-The project GUID is already set in `osf_sources.json`:
+The matcher writes:
+
+- `data/results/matches.csv`
+
+The post-processing pipeline writes:
+
+- `data/results/matches_state_filled.csv`
+- `data/results/matches_with_uniform_cd_shifted.csv`
+- `data/results/redistricting_analysis.csv`
+- `data/results/redistricting_summary.txt`
+
+## OSF Configuration
+
+The package is already configured for the public OSF project:
 
 ```json
 { "_osf_project": "https://osf.io/eqsjw/" }
 ```
 
-**How the files should be uploaded.** Either style works — `setup_data.py` auto-detects which one is present:
-
-- **Raw files (what we use):** upload each shapefile's components directly into OSF Storage — `*.shp`, `*.shx`, `*.dbf`, `*.prj` (`.cpg` optional). They can sit flat in the storage root or in folders; names just have to match (e.g. `US_HistCounties.shp`, `tl_2010_us_county10.shp`, `cb_2023_us_cd118_5m.shp`, `cb_2024_us_cd119_5m.shp`). Extra sidecar files like `.shp.xml` / `.iso.xml` are ignored. This is the no-zip path — drag the files in and you're done.
-- **Zips:** alternatively, one `.zip` per source containing its shapefile set; `setup_data.py` downloads, unzips, and flattens it.
-
-**Public project.** The OSF project is public, so no token is needed:
+No `OSF_TOKEN` is needed for the public project. Tokens are still supported for
+private mirrors:
 
 ```bash
+export OSF_TOKEN=your_token_here
 python scripts/setup_data.py
-python scripts/run_pipeline.py --start 1984 --end 2025
 ```
 
-`--osf-token` / `OSF_TOKEN` is still supported for private mirrors, but it should normally be left unset for this public-project workflow.
+## UCLA Year-to-Congress Mapping
 
-You should see, per source, `OSF raw files (auto-discovered): ...` and a summary line ending in `(primary: OSF(raw files))`. If a download fails, it falls back to the original public URL automatically.
-
-**Per-file GUID override (optional).** If you ever want to pin a specific file, paste its 5-character GUID (`osf.io/XXXXX/` → `XXXXX`) into the matching field in `osf_sources.json` (`county_2010`, `cd_118th_2023`, `cd_119th_2025`, `newberry_historical`); those take priority over auto-discovery. Other ways to supply config: `--osf-config path.json`, the `OSF_SOURCES_JSON` / `OSF_PROJECT_GUID` env vars.
-
-## Post-processing pipeline
-
-After the matcher writes `matches.csv`, three steps turn it into the redistricting analysis. Each is a standalone script (formerly cells in `Code Patch 0424.ipynb`) and can be run on its own or chained with `run_pipeline.py`:
-
-```bash
-# Stage 1 — backfill state_name (derives it from county_fips; recovers the
-#           ~94% of 1984–2012 rows that come through without a state).
-python scripts/backfill_state.py            # --> matches_state_filled.csv
-
-# Stage 2 — add a uniform cross-year CD number + shift year by -1 to correct
-#           the storage glitch (geometry under year Y reflects session Y-1).
-python scripts/add_uniform_cd.py            # --> matches_with_uniform_cd_shifted.csv
-
-# Stage 3 — detect redistricting events year-over-year per (state, district).
-python scripts/analyze_redistricting.py     # --> redistricting_analysis.csv + _summary.txt
-```
-
-All three default to reading/writing inside `<data-dir>/results/` and accept `--data-dir`, `--input`, and `--output` overrides (run any with `-h` for the full list). Useful flags: `backfill_state.py --territory-policy {fill,drop}`, `add_uniform_cd.py --year-shift N`, `analyze_redistricting.py --threshold PCT` (default 20).
-
-`run_pipeline.py` runs the matcher and all three stages in order with consistent paths. Use `--skip-matcher` to re-run only the post-processing on an existing `matches.csv`, and `--skip-download` to forward to the matcher's compute-only mode.
-
-> **Note on identifier columns:** the pipeline reads `cd_geoid`, `county_fips`, etc. as strings. CSV round-tripping otherwise coerces zero-padded codes like `"0601"` to floats (`601.0`) and drops the leading zero the analysis depends on.
-
-## UCLA year-to-Congress mapping
-
-The code maps each calendar year to the UCLA congressional-cycle file using:
+The matcher maps calendar years to UCLA files using:
 
 ```python
 congress_num = (year - 1789) // 2 + 1
 filename = f"districts{congress_num:03d}.zip"
 ```
 
-Examples: 1984 -> `districts098.zip`; 1985-1986 -> `districts099.zip`; 2013-2014 -> `districts113.zip`; 2015-2016 -> `districts114.zip`; 2023-2024 -> `districts118.zip`; 2025 -> `districts119.zip`. Therefore 2014 is mapped to the 113th Congress under the UCLA service-date convention shown in the table.
+Examples:
 
-The old default one-year backward shift has been disabled. `scripts/add_uniform_cd.py` and `scripts/run_pipeline.py` now default to `--year-shift 0`; pass `--year-shift -1` only if a downstream analysis intentionally needs the old convention.
+| Year | UCLA file |
+|---:|---|
+| 1984 | `districts098` |
+| 1985-1986 | `districts099` |
+| 2013-2014 | `districts113` |
+| 2015-2016 | `districts114` |
+| 2023-2024 | `districts118` |
+| 2025 | `districts119` |
 
-## NHGIS API key (optional)
+## Directory Layout
 
-NHGIS is used as a fallback when the primary sources (TIGER, UCLA, cartographic boundary files) don't cover a given year. If you want to enable it:
-
-1. Register for a free IPUMS NHGIS account and generate an API key at https://account.ipums.org/api_keys
-2. Either pass it on the command line:
-   ```bash
-   python scripts/run_matcher.py --nhgis-key YOUR_KEY
-   ```
-   or export it:
-   ```bash
-   export NHGIS_API_KEY=YOUR_KEY
-   python scripts/run_matcher.py
-   ```
-
-If no key is supplied, NHGIS sources are simply skipped. The other sources cover every year on their own.
-
-## Running just a subset of years
-
-```bash
-python scripts/run_matcher.py --years 2012 2016 2020 2024
-python scripts/run_matcher.py --start 2010 --end 2020
+```text
+cd-county-matcher-complete/
+  src/
+    __init__.py
+    matcher.py
+  scripts/
+    setup_data.py
+    run_matcher.py
+    run_pipeline.py
+    backfill_state.py
+    add_uniform_cd.py
+    analyze_redistricting.py
+  osf_sources.json
+  environment.yml
+  requirements.txt
+  LICENSE
+  README.md
 ```
 
-## Running only the compute step
+## Notes
 
-If you've already downloaded the shapefiles on a previous run and just want to recompute overlaps:
-
-```bash
-python scripts/run_matcher.py --skip-download --start 1984 --end 2025
-```
-
-## Using from Python
-
-```python
-from src.matcher import CDCountyMatcher
-
-matcher = CDCountyMatcher(data_dir="./data", nhgis_api_key=None)
-matcher.download_data([2012, 2016, 2020])
-matches_df = matcher.compute_matches([2012, 2016, 2020])
-```
-
-## Output schema
-
-`data/results/matches.csv` has one row per (CD, county) pair per year where the district has at least 1% of its area in the county:
-
-| column | meaning |
-|---|---|
-| `year` | election / boundary year |
-| `state_name` | human-readable state |
-| `cd_number` | district number within the state |
-| `cd_geoid` | Census GEOID for the district |
-| `cd_name` | e.g. "Congressional District 3" |
-| `county_name` | county name |
-| `county_fips` | 5-digit FIPS |
-| `cd_area_km2` | total district area |
-| `county_area_km2` | total county area |
-| `intersection_area_km2` | overlap area |
-| `pct_cd_in_county` | % of the district that's in this county |
-| `pct_county_in_cd` | % of the county that's in this district |
-| `data_source`, `processing_date` | provenance |
-
-## Data sources
-
-| Source | Years covered | Notes |
-|---|---|---|
-| OSF public project | 1984-2025 | Primary source for uploaded shapefiles; no token needed |
-| UCLA (Lewis et al.) | 1984-2025 | Congressional districts for all cycles: `districts098.zip` ... `districts119.zip`; used from OSF first, then UCLA public URL fallback |
-| TIGER/Line / Census cartographic | 2000-present | County fallback only when OSF is unavailable/missing files |
-| Newberry Atlas | 1790-2000 | Historical county fallback/source for pre-2000 counties, fetched from OSF first |
-| NHGIS | 1790-present | Optional fallback, requires API key |
-
-## Directory layout
-
-```
-cd-county-matcher/
-├── src/
-│   ├── __init__.py
-│   └── matcher.py            # CDCountyMatcher class + OSF source config
-├── scripts/
-│   ├── setup_data.py         # Fetch large shapefiles (OSF-first; run once)
-│   ├── run_matcher.py        # Matcher CLI entry point
-│   ├── backfill_state.py     # Pipeline 1/3: fill state_name from county_fips
-│   ├── add_uniform_cd.py     # Pipeline 2/3: uniform CD number + year shift
-│   ├── analyze_redistricting.py  # Pipeline 3/3: redistricting analysis
-│   └── run_pipeline.py       # Orchestrator: matcher + all post-processing
-├── osf_sources.json          # OSF GUIDs for the large files (edit after upload)
-├── data/                     # Gitignored — populated at runtime
-│   ├── manual_sources/       # Populated by setup_data.py (from OSF)
-│   ├── tiger/                # Per-year TIGER downloads
-│   ├── ucla_github/          # UCLA historical CDs
-│   ├── census_cartographic/  # CB files
-│   ├── newberry_historical/  # Derived per-year filtered counties
-│   ├── nhgis_api/            # NHGIS extracts (if key provided)
-│   └── results/
-│       ├── matches.csv                          # matcher output
-│       ├── matches_state_filled.csv             # after backfill_state.py
-│       ├── matches_with_uniform_cd_shifted.csv  # after add_uniform_cd.py
-│       ├── redistricting_analysis.csv           # after analyze_redistricting.py
-│       └── redistricting_summary.txt
-├── environment.yml           # Conda env (recommended)
-├── requirements.txt          # Pip fallback
-└── README.md
-```
-
-## Troubleshooting
-
-**`ImportError: No module named 'fiona'` or similar when using pip**
-The geospatial stack needs native GDAL/GEOS/PROJ libraries. Use the conda environment (`environment.yml`) — it's the painless path. If you're locked into pip, you'll need to install GDAL/GEOS/PROJ through your OS package manager first.
-
-**A Newberry or Census URL returns 404**
-These files are now served primarily from OSF (see "Hosting the large files on OSF"), so configuring `osf_sources.json` avoids the moving public URLs entirely. If you haven't set up OSF and a public URL at publications.newberry.org or www2.census.gov has moved, re-run `python scripts/setup_data.py` — if it still fails, follow the fallback note it prints (usually: download the file manually from the linked page and drop it in `data/manual_sources/<source-name>/`).
-
-**Out of memory on the full 1984-2025 run**
-Process in chunks: `python scripts/run_matcher.py --start 1984 --end 2000`, then `--start 2001 --end 2025`. The overlay computation is memory-heavy for large multi-year runs.
-
-## License
-
-MIT. Downloaded shapefiles retain their original licenses — see the source organizations for details.
+The `data/` directory is intentionally not included in the zip because the
+large shapefiles are fetched from OSF at runtime.
