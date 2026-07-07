@@ -2,7 +2,7 @@
 
 Compute area-based overlaps between **US Congressional Districts** and **counties** for any year from 1984 through 2025. The updated pipeline is **OSF-first**: it tries the public OSF project for all required shapefiles first, and only if OSF is unavailable/missing a file does it fall back to public online sources. Congressional districts use the UCLA Congressional District Boundary Project for **all** cycles/years, using `districts098.zip` through `districts119.zip`. The output is a tidy CSV where each row describes what fraction of a CD lies in a given county (and vice versa).
 
-## Quickstart
+## Quickstart on MacOS
 
 ```bash
 # 1. Clone
@@ -24,10 +24,35 @@ python scripts/setup_data.py
 # 5. Run the matcher
 python scripts/run_matcher.py --start 1984 --end 2025
 
-# 6. (Optional) Run the post-processing pipeline (state backfill, uniform CD
+# 6. Run the post-processing pipeline (state backfill, uniform CD
 #    numbers + year-shift correction, redistricting analysis):
 python scripts/run_pipeline.py --skip-matcher --start 1984 --end 2025
+
 ```
+## Quickstart on Windows
+```
+# 1. Clone
+git clone https://github.com/Adrianne-Li/Climate-Project.git cd-county-matcher
+cd cd-county-matcher
+
+# 2. Create the conda environment
+#    Recommended: handles GDAL/GEOS/PROJ for you
+conda env create -f environment.yml
+conda activate py312
+
+# 3. Optional: Register as a Jupyter kernel
+python -m ipykernel install --user --name py312 --display-name "Python (py312)"
+
+# 4. Fetch the large shapefiles that do not live in this repo
+#    About 300 MB total. By default these come from the project's OSF Storage.
+python scripts/setup_data.py
+
+# 5. Run the matcher
+python scripts/run_matcher.py --start 1984 --end 2025
+
+# 6. Run the post-processing pipeline
+#    State backfill, uniform CD numbers, year-shift correction, and redistricting analysis
+python scripts/run_pipeline.py --skip-matcher --start 1984 --end 2025
 
 Results land in `data/results/`. The matcher produces `matches.csv`; the
 pipeline adds `matches_state_filled.csv`, `matches_with_uniform_cd_shifted.csv`,
