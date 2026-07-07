@@ -1,6 +1,6 @@
 # cd-county-matcher
 
-Compute area-based overlaps between **US Congressional Districts** and **counties** for any year from 1984 through 2025. The tool pulls shapefiles from multiple public sources — TIGER/Line, Census cartographic files, NHGIS, the UCLA Congressional District Boundary Project, and the Newberry Atlas of Historical County Boundaries — and produces a tidy CSV where each row describes what fraction of a CD lies in a given county (and vice versa).
+Compute area-based overlaps between **US Congressional Districts** and **counties** for any year from 1984 through 2025. The updated pipeline is **OSF-first**: it tries the public OSF project for all required shapefiles first, and only if OSF is unavailable/missing a file does it fall back to public online sources. Congressional districts use the UCLA Congressional District Boundary Project for **all** cycles/years, using `districts098.zip` through `districts119.zip`. The output is a tidy CSV where each row describes what fraction of a CD lies in a given county (and vice versa).
 
 ## Quickstart
 
@@ -43,13 +43,13 @@ python scripts/run_pipeline.py --start 1984 --end 2025
 
 A handful of the shapefiles the matcher uses are too large or too awkwardly licensed to ship inside a git repo — most notably the TIGER 2010 county file (~75 MB) and the Newberry Atlas of Historical County Boundaries (~500 MB). Instead of checking them in, `scripts/setup_data.py` pulls them into `data/manual_sources/` on first run. This keeps the repo small, the licensing clean, and the data current.
 
-The **primary** source for these files is our project's OSF Storage (see below), which is fast and has stable URLs. This replaced the old behaviour of crawling the original public servers (Census, Newberry), which were slow and whose URLs move around. The original public URLs are kept as automatic fallbacks.
+The **primary** source is now the project's public OSF Storage (see below), which has stable URLs and does not require a token. The original public URLs are kept only as automatic fallbacks when OSF discovery/download fails or the expected file is not present.
 
 The downloader is resilient: for each file it tries OSF first, then the public fallback URL; if everything fails it prints a fallback note telling you where to grab the file manually and what folder to drop it into.
 
 ## Hosting the large files on OSF
 
-The four manual shapefiles live in our OSF project's **OSF Storage** so collaborators don't re-download them from slow public servers. `setup_data.py` only needs the project's GUID — it queries the OSF API, lists the files in the project, matches the ones it needs by name, and downloads them. No per-file GUIDs to copy.
+The large/manual shapefiles live in the project's **public OSF Storage** so collaborators do not need tokens or slow ad hoc source downloads. `setup_data.py` only needs the project's GUID — it queries the OSF API, lists the files in the project, matches the ones it needs by name, and downloads them. No per-file GUIDs are required. The matcher itself also performs OSF discovery and will try OSF before using any public fallback.
 
 The project GUID is already set in `osf_sources.json`:
 
@@ -62,19 +62,14 @@ The project GUID is already set in `osf_sources.json`:
 - **Raw files (what we use):** upload each shapefile's components directly into OSF Storage — `*.shp`, `*.shx`, `*.dbf`, `*.prj` (`.cpg` optional). They can sit flat in the storage root or in folders; names just have to match (e.g. `US_HistCounties.shp`, `tl_2010_us_county10.shp`, `cb_2023_us_cd118_5m.shp`, `cb_2024_us_cd119_5m.shp`). Extra sidecar files like `.shp.xml` / `.iso.xml` are ignored. This is the no-zip path — drag the files in and you're done.
 - **Zips:** alternatively, one `.zip` per source containing its shapefile set; `setup_data.py` downloads, unzips, and flattens it.
 
-**Private vs public project.** Our project is private, so the OSF API and the downloads need an access token:
+**Public project.** The OSF project is public, so no token is needed:
 
-1. Create a Personal Access Token at https://osf.io/settings/tokens/ (the `osf.full_read` scope is enough).
-2. Export it before running setup (never commit it):
+```bash
+python scripts/setup_data.py
+python scripts/run_pipeline.py --start 1984 --end 2025
+```
 
-   ```bash
-   export OSF_TOKEN=your_token_here
-   python scripts/setup_data.py        # add --force to overwrite existing files
-   ```
-
-   Or pass it inline: `python scripts/setup_data.py --osf-token your_token_here`.
-
-   Each collaborator needs their own token and must be a contributor on the project. If you'd rather skip tokens entirely, make the project public — then `setup_data.py` works with no token at all.
+`--osf-token` / `OSF_TOKEN` is still supported for private mirrors, but it should normally be left unset for this public-project workflow.
 
 You should see, per source, `OSF raw files (auto-discovered): ...` and a summary line ending in `(primary: OSF(raw files))`. If a download fails, it falls back to the original public URL automatically.
 
@@ -102,6 +97,19 @@ All three default to reading/writing inside `<data-dir>/results/` and accept `--
 `run_pipeline.py` runs the matcher and all three stages in order with consistent paths. Use `--skip-matcher` to re-run only the post-processing on an existing `matches.csv`, and `--skip-download` to forward to the matcher's compute-only mode.
 
 > **Note on identifier columns:** the pipeline reads `cd_geoid`, `county_fips`, etc. as strings. CSV round-tripping otherwise coerces zero-padded codes like `"0601"` to floats (`601.0`) and drops the leading zero the analysis depends on.
+
+## UCLA year-to-Congress mapping
+
+The code maps each calendar year to the UCLA congressional-cycle file using:
+
+```python
+congress_num = (year - 1789) // 2 + 1
+filename = f"districts{congress_num:03d}.zip"
+```
+
+Examples: 1984 -> `districts098.zip`; 1985-1986 -> `districts099.zip`; 2013-2014 -> `districts113.zip`; 2015-2016 -> `districts114.zip`; 2023-2024 -> `districts118.zip`; 2025 -> `districts119.zip`. Therefore 2014 is mapped to the 113th Congress under the UCLA service-date convention shown in the table.
+
+The old default one-year backward shift has been disabled. `scripts/add_uniform_cd.py` and `scripts/run_pipeline.py` now default to `--year-shift 0`; pass `--year-shift -1` only if a downstream analysis intentionally needs the old convention.
 
 ## NHGIS API key (optional)
 
@@ -169,11 +177,11 @@ matches_df = matcher.compute_matches([2012, 2016, 2020])
 
 | Source | Years covered | Notes |
 |---|---|---|
-| TIGER/Line | 2000-present | Primary source; falls back to per-state downloads when national files are missing |
-| Census cartographic (CB) | 2013-present | Smaller, generalized boundaries |
-| UCLA (Lewis et al.) | 1984-2012 | Historical congressional districts |
-| NHGIS | 1790-present | Optional, requires API key |
-| Newberry Atlas | 1790-2000 | Historical county boundaries, fetched by `setup_data.py` |
+| OSF public project | 1984-2025 | Primary source for uploaded shapefiles; no token needed |
+| UCLA (Lewis et al.) | 1984-2025 | Congressional districts for all cycles: `districts098.zip` ... `districts119.zip`; used from OSF first, then UCLA public URL fallback |
+| TIGER/Line / Census cartographic | 2000-present | County fallback only when OSF is unavailable/missing files |
+| Newberry Atlas | 1790-2000 | Historical county fallback/source for pre-2000 counties, fetched from OSF first |
+| NHGIS | 1790-present | Optional fallback, requires API key |
 
 ## Directory layout
 
