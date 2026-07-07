@@ -1,8 +1,0 @@
-{
-  "_comment": "Public OSF project used as the primary data source. No OSF_TOKEN is needed. Leave per-file fields empty unless you want to pin a specific OSF file GUID; auto-discovery matches files by name, including UCLA districts098.zip ... districts119.zip and raw shapefile components (.shp/.shx/.dbf/.prj/.cpg).",
-  "_osf_project": "https://osf.io/eqsjw/",
-  "county_2010": "",
-  "cd_118th_2023": "",
-  "cd_119th_2025": "",
-  "newberry_historical": ""
-}
