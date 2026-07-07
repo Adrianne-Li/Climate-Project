@@ -1,0 +1,16 @@
+# Pip-only fallback. Prefer conda env create -f environment.yml because
+# geopandas/fiona/gdal are much easier to install via conda-forge.
+numpy==2.1.1
+scipy==1.14.1
+scikit-learn==1.5.1
+pandas==2.2.2
+matplotlib==3.9.2
+seaborn==0.13.2
+pysal==24.7
+spreg
+geopandas>=1.0
+shapely>=2.0
+fiona>=1.9
+pyproj>=3.6
+requests>=2.31
+urllib3>=2.0

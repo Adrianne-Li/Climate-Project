@@ -1,0 +1,24 @@
+name: py312
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - ipykernel
+  - geopandas>=1.0
+  - shapely>=2.0
+  - fiona>=1.9
+  - pyproj>=3.6
+  - gdal>=3.8
+  - pip
+  - pip:
+      - numpy==2.1.1
+      - scipy==1.14.1
+      - scikit-learn==1.5.1
+      - pandas==2.2.2
+      - matplotlib==3.9.2
+      - seaborn==0.13.2
+      - pysal==24.7
+      - spreg
+      - requests>=2.31
+      - urllib3>=2.0
