@@ -1,8 +1,0 @@
-{
-  "_comment": "Two ways to point the code at OSF. EASIEST: set _osf_project to your project's GUID (or full URL) and leave the per-file fields empty -- setup_data.py will query the OSF API, list the project's files, and match them by name automatically (no per-file GUIDs, no auth for public projects). ALTERNATIVE: paste each file's individual 5-character GUID (osf.io/XXXXX/ -> 'XXXXX') into the fields below; these take priority over auto-discovery. For a PRIVATE project, also set the OSF_TOKEN env var to a Personal Access Token from https://osf.io/settings/tokens/.",
-  "_osf_project": "https://osf.io/eqsjw/",
-  "county_2010": "",
-  "cd_118th_2023": "",
-  "cd_119th_2025": "",
-  "newberry_historical": ""
-}
